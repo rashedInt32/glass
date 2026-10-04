@@ -152,14 +152,32 @@ function renderBlock(c: Ctx, b: Block): RenderElement {
   }
 }
 
+// a fence with no language (or a plain-text one) whose rows are mostly
+// arrows, box-drawing, block or shape glyphs is a picture, not code
+const DIAGRAM_LANGS = new Set(['', 'text', 'txt', 'ascii', 'diagram'])
+
+function isDrawingGlyph(code: number): boolean {
+  return (code >= 0x2190 && code <= 0x21ff) || (code >= 0x2500 && code <= 0x25ff)
+}
+
+function isDiagram(lang: string, source: string): boolean {
+  if (!DIAGRAM_LANGS.has(lang.toLowerCase())) return false
+  const rows = source.split('\n').filter(l => l.trim() !== '')
+  const drawn = rows.filter(l => [...l].some(ch => isDrawingGlyph(ch.codePointAt(0)!))).length
+  return rows.length > 0 && drawn * 2 >= rows.length
+}
+
 // tinted card sized to its code: dim language left and line count right in
-// the header row, glass's own highlighter below, a gutter once long
+// the header row, glass's own highlighter below, a gutter once long. A
+// diagram draws as typed: no header or gutter, rows cut at the card edge,
+// since a wrapped row breaks every box and arrow below it
 function renderFence(c: Ctx, lang: string, source: string): RenderElement {
   const { t, p } = c
   const code = source.replace(/\n$/, '')
   const codeLines = code === '' ? [] : code.split('\n')
   const lines = codeLines.length
-  const gutter = lines > 8
+  const diagram = isDiagram(lang, code)
+  const gutter = !diagram && lines > 8
   const digits = String(lines).length
   const widest = Math.max(0, ...codeLines.map(cellWidth))
   const header = cellWidth(lang) + (gutter ? cellWidth(`${lines} lines`) + 2 : 0)
@@ -184,7 +202,7 @@ function renderFence(c: Ctx, lang: string, source: string): RenderElement {
   // paints with a theme the owner rejected (2026-10-03)
   highlight(code, lang.toLowerCase()).forEach((spans, i) => {
     const body = t.Text({
-      wrap: 'wrap',
+      wrap: diagram ? 'truncate-end' : 'wrap',
       children: spans.map(s => (s.kind === 'plain' ? s.text : t.Text({ color: p[CODE_COLOR[s.kind]], children: [s.text] }))),
     })
     children.push(
@@ -282,7 +300,8 @@ function blockRows(b: Block, m: number): number {
     case 'code': {
       const code = b.source.replace(/\n$/, '')
       const lines = code === '' ? 0 : code.split('\n').length
-      return (b.lang || lines > 8 ? 1 : 0) + Math.max(1, lines)
+      if (isDiagram(b.lang, code)) return Math.max(1, lines)
+      return (lines > 8 ? 1 : 0) + Math.max(1, lines)
     }
     case 'list': {
       const ordered = b.items.filter(it => /^\d/.test(it.marker))

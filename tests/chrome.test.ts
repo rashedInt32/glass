@@ -4,11 +4,14 @@ import type { Elements, RenderElement, RenderNode } from 'claude-code'
 import { CLOCK_CELLS, callScope, clockCells, renderAgentLaunch, fmtCost, fmtToolTime, renderBand, renderBashResult, renderDiff, renderEventRow, renderGroupRow, renderMessageRow, renderToolOutput, renderTreeRow, renderUserRow, safeText } from '../hooks/chrome'
 import { G } from '../hooks/glyphs'
 import { highlight, langOf } from '../hooks/highlight'
+import { parseMarkdown } from '../hooks/markdown'
+import { quoteRows, renderReply } from '../hooks/render'
 import type { CodeSpan } from '../hooks/highlight'
 import { PALETTES } from '../hooks/palette'
 import { cellWidth } from '../hooks/width'
 
 const p = PALETTES.tidepool
+const cp = (n: number) => String.fromCodePoint(n)
 
 // a plain-data table: the renderers only build trees, so a test can walk
 // them without a surface
@@ -392,4 +395,68 @@ test('mounted live: a running row with its Raster clock validates, and the ticke
   await row.unmount()
   release()
   await running
+})
+
+// a ten-row box-drawing flow, the shape Claude draws in a bare fence
+const boxDiagram = (() => {
+  const h = cp(0x2500), v = cp(0x2502), down = cp(0x25bc)
+  const box = (label: string) => [
+    cp(0x250c) + h.repeat(10) + cp(0x2510),
+    v + label.padEnd(10) + v,
+    cp(0x2514) + h.repeat(10) + cp(0x2518),
+  ]
+  return [...box(' order'), '     ' + down, ...box(' payment'), '     ' + down, ...box(' settle')]
+})()
+
+// the tinted card a fence draws, found anywhere in a reply tree
+function fenceCard(node: RenderNode): RenderElement | undefined {
+  if (typeof node === 'string' || !node) return undefined
+  const props = ((node as { props?: unknown }).props ?? {}) as { backgroundColor?: string; children?: RenderNode[] }
+  if (props.backgroundColor === p.blockBg) return node as RenderElement
+  for (const child of props.children ?? []) {
+    const hit = fenceCard(child)
+    if (hit) return hit
+  }
+  return undefined
+}
+
+const reply = (md: string, columns = 100) => renderReply(t, parseMarkdown(md), p, { bullet: false, columns, marks: false })
+
+test('a box-drawing diagram over eight lines draws as itself: no header row, no line numbers', async () => {
+  const card = fenceCard(reply('```\n' + boxDiagram.join('\n') + '\n```'))!
+  expect(boxDiagram.length).toBeGreaterThan(8)
+  expect(lines(card)).toEqual(boxDiagram)
+})
+
+test('a diagram row wider than the card truncates instead of wrapping', async () => {
+  const wide = cp(0x250c) + cp(0x2500).repeat(70) + cp(0x2510)
+  const card = fenceCard(reply('```\n' + wide + '\n' + cp(0x2502) + '\n```', 40))!
+  const rows = ((card as { props: { children: RenderElement[] } }).props.children)
+  for (const row of rows) expect((row as { props: { wrap?: string } }).props.wrap).toBe('truncate-end')
+})
+
+test('code over eight lines keeps its header and numbered gutter', async () => {
+  const code = Array.from({ length: 10 }, (_, i) => `const a${i} = ${i}`)
+  const rows = lines(fenceCard(reply('```ts\n' + code.join('\n') + '\n```'))!)
+  expect(rows[0]).toBe('TS10 lines')
+  expect(rows[1]).toBe(' 1  const a0 = 0')
+})
+
+test('a quoted diagram is as tall as its rows: no header row is counted', async () => {
+  const blocks = parseMarkdown('> ```\n' + boxDiagram.map(l => '> ' + l).join('\n') + '\n> ```')
+  if (blocks[0]?.kind !== 'quote') throw new Error('expected a quote')
+  expect(quoteRows(blocks[0].blocks, 60)).toBe(boxDiagram.length)
+})
+
+test('a plain-text fence of prose with one arrow is still text, gutter and all', async () => {
+  const prose = Array.from({ length: 10 }, (_, i) => `step ${i} of the runbook`)
+  prose[3] = 'then ' + cp(0x2192) + ' retry'
+  const rows = lines(fenceCard(reply('```text\n' + prose.join('\n') + '\n```'))!)
+  expect(rows[0]).toBe('TEXT10 lines')
+})
+
+test('a quoted short fence with a language is as tall as its code: short fences draw no header', async () => {
+  const blocks = parseMarkdown('> ```ts\n> const a = 1\n> const b = 2\n> ```')
+  if (blocks[0]?.kind !== 'quote') throw new Error('expected a quote')
+  expect(quoteRows(blocks[0].blocks, 60)).toBe(2)
 })
