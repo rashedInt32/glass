@@ -590,6 +590,11 @@ finished turn; these rules replace the ones above where they differ.
   `… +N lines`, in place of the engine's `Error editing file` and its
   corner bracket (0.4.17, confirmed live 2026-10-06). The `[Image #N]` row
   under an image prompt is still the engine's and keeps its bracket.
+- A loaded skill's result is one trunked `faint` line, `skill loaded`, with
+  the engine's `N tools allowed` and model after middots where it gives
+  them; a forked skill draws as an Agent's launch. In place of the engine's
+  `Successfully loaded skill` and its corner bracket, which sat off the
+  trunk (0.4.25, owner's screenshot 2026-10-09). Unverified live.
 - The band stops four cells short of `bodyColumns`, so the engine's `[-]`
   mark sits beside its top-right arc, not over it. Unverified live.
 

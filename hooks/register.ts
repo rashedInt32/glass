@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { Elements, EngineInterface, RenderElement, Register } from 'claude-code'
 
 import type { GlassAgent, GlassCall, GlassPrompt, GlassTurn } from '../types'
-import { cleanHint, renderHint, clockCells, isEditTool, toolText, setCwd, renderAgentLaunch, renderBand, renderBashResult, renderDiff, renderEventRow, renderGroupRow, renderMessageRow, renderNoOutput, renderToolError, renderToolOutput, renderTreeRow, renderUserRow } from './chrome'
+import { cleanHint, renderHint, clockCells, isEditTool, toolText, setCwd, renderAgentLaunch, renderBand, renderBashResult, renderDiff, renderEventRow, renderGroupRow, renderMessageRow, renderNoOutput, renderSkillLoad, renderToolError, renderToolOutput, renderTreeRow, renderUserRow } from './chrome'
 import type { ChangedFile, Hunk } from './chrome'
 import { G } from './glyphs'
 import { parseMarkdown } from './markdown'
@@ -332,6 +332,9 @@ export const register: Register = (on, options) => {
       if (status === 'async_launched' || status === 'remote_launched') return renderAgentLaunch($.ui.resolve(e), palette, status === 'remote_launched')
       return next(e)
     }
+    // a loaded skill: one trunked line in place of the engine's body, whose
+    // corner bracket sat off the trunk (2026-10-09)
+    if (e.props.tool === 'Skill' && !e.props.isErrored) return renderSkillLoad($.ui.resolve(e), palette, e.props.output)
     if (e.props.tool !== 'Bash') return next(e)
     // a backgrounded command: the same trunked line, not the engine's corner
     // bracket, which sat off the trunk (2026-10-05)

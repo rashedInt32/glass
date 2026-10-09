@@ -11,7 +11,7 @@
       "source": "./",
       "displayName": "Glass",
       "description": "A desktop-app look for Claude Code's terminal: colored shell commands in prose, a Bottom line card, content-fit code cards, borderless tables, gutter marks beside paragraphs that need you, painted tool rows and turn headers.",
-      "version": "0.4.24",
+      "version": "0.4.25",
       "homepage": "https://github.com/rashedInt32/glass",
       "repository": "https://github.com/rashedInt32/glass",
       "license": "MIT",

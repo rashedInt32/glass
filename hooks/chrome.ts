@@ -970,6 +970,19 @@ export function renderNoOutput(t: Table, p: Palette): RenderElement {
   return trunked(t, p, 1, [t.Text({ color: p.faint, wrap: 'truncate-end', children: ['(No output)'] })])
 }
 
+// A loaded skill, in place of the engine's body (its corner bracket sat off
+// the trunk, 2026-10-09): one trunked line in `faint`, with the engine's
+// tool count and model where it gives them. A forked skill draws as an
+// Agent's launch.
+export function renderSkillLoad(t: Table, p: Palette, output: unknown): RenderElement {
+  const o = (output && typeof output === 'object' ? output : {}) as { status?: unknown; background?: unknown; allowedTools?: unknown; model?: unknown }
+  if (o.status === 'forked') return o.background === true ? renderAgentLaunch(t, p, false) : trunked(t, p, 1, [t.Text({ color: p.faint, children: ['done'] })])
+  const parts = ['skill loaded']
+  if (Array.isArray(o.allowedTools) && o.allowedTools.length > 0) parts.push(`${plural(o.allowedTools.length, 'tool')} allowed`)
+  if (typeof o.model === 'string' && o.model !== '') parts.push(safeText(o.model, 80))
+  return trunked(t, p, 1, [t.Text({ color: p.faint, wrap: 'truncate-end', children: [parts.join(sep)] })])
+}
+
 // A failed non-Bash call's error, in place of the engine's body (its corner
 // bracket broke the trunk, 2026-10-06): the reason's first line in `err`,
 // the rest a `faint` count; ctrl+o has it whole.
