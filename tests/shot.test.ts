@@ -60,7 +60,7 @@ test('the box keeps the aspect and stays inside its caps', () => {
 
 // the trees go through the engine's validator: a refused tree would fall
 // back to the engine's own drawing in a session
-test('mounted: a screenshot result draws an Image on the trunk', async ($, on) => {
+test('mounted: a screenshot result draws an Image on the trunk', { options: { screenshots: true } }, async ($, on) => {
   // the engine's own body, beneath glass
   on('ui.render', { component: 'ToolResult' }, (engine, e) => engine.ui.resolve(e).Text({ children: ['engine body'] }) as never)
   const row = await $.ui.mount({
@@ -112,7 +112,7 @@ test('screenshots off: the result keeps the engine body, the group stays folded'
   await group.unmount()
 })
 
-test('mounted: a group with a screenshot opens, and the row draws the picture', async ($, on) => {
+test('mounted: a group with a screenshot opens, and the row draws the picture', { options: { screenshots: true } }, async ($, on) => {
   // the engine's group, beneath glass: it says whether glass opened it
   on('ui.render', { component: 'ToolGroup' }, (engine, e) => engine.ui.resolve(e).Text({ children: [e.props.isExpanded ? 'opened' : 'folded'] }) as never)
   const shot = { tool_use_id: 'toolu_g2', tool: 'mcp__plugin_jev-reach_chrome-devtools__take_screenshot', input: {}, isRunning: false, isErrored: false, isInterrupted: false, output: engineResult(ONE_PX, 'image/png', null) }
@@ -181,7 +181,7 @@ test('a group draws one Read picture: the last the person did not name', () => {
   expect(lastPictureRead([{ tool_use_id: 'r4', tool: 'Read', input: { file_path: '/a.ts' }, output: { type: 'text', file: {} } }], () => false)).toBe(null)
 })
 
-test('mounted: two image reads in a folded group draw exactly one Image', async ($, on) => {
+test('mounted: two image reads in a folded group draw exactly one Image', { options: { screenshots: true } }, async ($, on) => {
   on('ui.render', { component: 'ToolGroup' }, (engine, e) => engine.ui.resolve(e).Text({ children: [e.props.isExpanded ? 'opened' : 'folded'] }) as never)
   conversation(on, [])
   const group = await $.ui.mount({
@@ -221,7 +221,7 @@ const resultRow = ($: Parameters<Parameters<typeof test>[1] & (($: never, on: ne
 const useRow = ($: { ui: { mount: (a: unknown) => Promise<{ unmount: () => Promise<void> }> } }, id: string, path: string) =>
   $.ui.mount({ plugin: 'glass', surface: 'terminal', component: 'ToolUse', props: { ...readCall(id, path), isRunning: true, output: undefined } }).then(r => r.unmount())
 
-test('0.17.0: a group that grew draws one picture when it opens, not one per Read it ever chose', async ($, on) => {
+test('0.17.0: a group that grew draws one picture when it opens, not one per Read it ever chose', { options: { screenshots: true } }, async ($, on) => {
   on('ui.render', { component: 'ToolGroup' }, (engine, e) => engine.ui.resolve(e).Text({ children: [e.props.isExpanded ? 'opened' : 'folded'] }) as never)
   conversation(on, [])
   const a = readCall('grow-a', '/tmp/a.png'), b = readCall('grow-b', '/tmp/b.png')
@@ -239,7 +239,7 @@ test('0.17.0: a group that grew draws one picture when it opens, not one per Rea
   expect(images).toBe(1)
 })
 
-test('0.17.0: a standalone Read row knows its file: the person\'s own picture stays text, Claude\'s draws', async ($, on) => {
+test('0.17.0: a standalone Read row knows its file: the person\'s own picture stays text, Claude\'s draws', { options: { screenshots: true } }, async ($, on) => {
   engineBody(on)
   submitted(on)
   conversation(on, [])
@@ -259,7 +259,7 @@ test('0.17.0: a standalone Read row knows its file: the person\'s own picture st
   await unknown.unmount()
 })
 
-test('0.17.0: a resumed session reads the conversation: a picture named before the resume stays text', async ($, on) => {
+test('0.17.0: a resumed session reads the conversation: a picture named before the resume stays text', { options: { screenshots: true } }, async ($, on) => {
   engineBody(on)
   conversation(on, [
     { role: 'user', text: `look at ${MINE}`, toolUses: [] },
@@ -273,7 +273,7 @@ test('0.17.0: a resumed session reads the conversation: a picture named before t
   await found.unmount()
 })
 
-test('0.17.0: a named picture stays the person\'s past 48 prompts; a task notification names none', async ($, on) => {
+test('0.17.0: a named picture stays the person\'s past 48 prompts; a task notification names none', { options: { screenshots: true } }, async ($, on) => {
   engineBody(on)
   submitted(on)
   conversation(on, [])
@@ -346,7 +346,7 @@ const fakeDisk = (on: On, o: { sizes?: number[]; slow?: boolean; stuck?: () => b
 }
 const imageOf = async (row: { find: (q: unknown) => Promise<unknown> }) => ((await row.find({ type: 'Image' })) as { props?: { source?: unknown } } | undefined)?.props?.source
 
-test('0.17.0: a file read twice draws what each read saw, converted from the bytes through stdin', async ($, on) => {
+test('0.17.0: a file read twice draws what each read saw, converted from the bytes through stdin', { options: { screenshots: true } }, async ($, on) => {
   engineBody(on)
   conversation(on, [])
   const { runs } = fakeDisk(on)
@@ -364,7 +364,7 @@ test('0.17.0: a file read twice draws what each read saw, converted from the byt
   expect(writes.every(r => r.argv.every(a => !a.includes('jpegbytes')))).toBe(true)
 })
 
-test('0.17.0: a PNG too heavy to draw shrinks from its own size, never past it', async ($, on) => {
+test('0.17.0: a PNG too heavy to draw shrinks from its own size, never past it', { options: { screenshots: true } }, async ($, on) => {
   engineBody(on)
   conversation(on, [])
   // as it is: 3 MB; at three quarters: small enough
@@ -377,7 +377,7 @@ test('0.17.0: a PNG too heavy to draw shrinks from its own size, never past it',
   expect(converts).toEqual([0, 750])
 })
 
-test('0.17.0: a picture an earlier load converted is read back, with no sips', async ($, on) => {
+test('0.17.0: a picture an earlier load converted is read back, with no sips', { options: { screenshots: true } }, async ($, on) => {
   engineBody(on)
   conversation(on, [])
   const data = 'Bconvertedbefore'
@@ -389,7 +389,7 @@ test('0.17.0: a picture an earlier load converted is read back, with no sips', a
   expect(runs.filter(r => r.argv[0] === 'sips')).toHaveLength(0)
 })
 
-test('0.17.0: in the transcript view a grouped Read draws its picture once, under its ToolUse row', async ($, on) => {
+test('0.17.0: in the transcript view a grouped Read draws its picture once, under its ToolUse row', { options: { screenshots: true } }, async ($, on) => {
   engineBody(on)
   on('ui.render', { component: 'ToolGroup' }, (engine, e) => engine.ui.resolve(e).Text({ children: ['engine group'] }) as never)
   conversation(on, [])
@@ -414,7 +414,7 @@ test('0.17.0: in the transcript view a grouped Read draws its picture once, unde
 })
 
 
-test('0.17.0: conversions run one at a time; two rows asking together both draw', async ($, on) => {
+test('0.17.0: conversions run one at a time; two rows asking together both draw', { options: { screenshots: true } }, async ($, on) => {
   engineBody(on)
   conversation(on, [])
   const { most } = fakeDisk(on, { slow: true })
@@ -428,7 +428,7 @@ test('0.17.0: conversions run one at a time; two rows asking together both draw'
   expect(most()).toBe(1)
 })
 
-test('0.17.0: a conversion that never answers times out, frees the queue, and the next draw tries again', async ($, on) => {
+test('0.17.0: a conversion that never answers times out, frees the queue, and the next draw tries again', { options: { screenshots: true } }, async ($, on) => {
   engineBody(on)
   conversation(on, [])
   const clock = mock.clock(on, { now: 1_000_000 })
@@ -474,7 +474,7 @@ test('0.17.0: a text Read never waits on the conversation; a picture Read waits 
   expect(reads).toBe(1)
 })
 
-test('0.17.0: a job waiting its turn gets its own 8 s: after one hangs, the next ones still draw', async ($, on) => {
+test('0.17.0: a job waiting its turn gets its own 8 s: after one hangs, the next ones still draw', { options: { screenshots: true } }, async ($, on) => {
   engineBody(on)
   conversation(on, [])
   const clock = mock.clock(on, { now: 1_000_000 })
@@ -494,7 +494,7 @@ test('0.17.0: a job waiting its turn gets its own 8 s: after one hangs, the next
   for (const r of [one!, two!, three!]) await r.unmount()
 })
 
-test('0.17.0: each conversion run writes its own scratch files and removes them', async ($, on) => {
+test('0.17.0: each conversion run writes its own scratch files and removes them', { options: { screenshots: true } }, async ($, on) => {
   engineBody(on)
   conversation(on, [])
   const clock = mock.clock(on, { now: 1_000_000 })
@@ -531,7 +531,7 @@ test('0.17.0: a file the person named counts however Claude spells its path', ()
   expect(namedIn(['look at mya.png'], '/p/a.png', H)).toBe(false)
 })
 
-test('0.17.0: a group whose newest picture cannot draw shows an older one that can', async ($, on) => {
+test('0.17.0: a group whose newest picture cannot draw shows an older one that can', { options: { screenshots: true } }, async ($, on) => {
   on('ui.render', { component: 'ToolGroup' }, (engine, e) => engine.ui.resolve(e).Text({ children: [e.props.isExpanded ? 'opened' : 'folded'] }) as never)
   conversation(on, [])
   // no sips: every conversion fails
@@ -551,7 +551,7 @@ test('0.17.0: a group whose newest picture cannot draw shows an older one that c
   await g.unmount()
 })
 
-test('0.17.0: an open group that picks its picture after the Read\'s row drew redraws that row with it', async ($, on) => {
+test('0.17.0: an open group that picks its picture after the Read\'s row drew redraws that row with it', { options: { screenshots: true } }, async ($, on) => {
   on('ui.render', { component: 'ToolGroup' }, (engine, e) => engine.ui.resolve(e).Text({ children: ['engine group'] }) as never)
   conversation(on, [])
   const glob = { tool_use_id: 'late-g', tool: 'Glob', input: {}, isRunning: false, isErrored: true, isInterrupted: false, output: 'No such tool available: Glob' }
@@ -564,4 +564,20 @@ test('0.17.0: an open group that picks its picture after the Read\'s row drew re
   await g.unmount()
   expect(await row.find({ type: 'Image' })).toBeDefined()
   await row.unmount()
+})
+
+test('0.17.1: off by default: a screenshot keeps the engine row and its group stays folded', async ($, on) => {
+  on('ui.render', { component: 'ToolResult' }, (engine, e) => engine.ui.resolve(e).Text({ children: ['engine body'] }) as never)
+  on('ui.render', { component: 'ToolGroup' }, (engine, e) => engine.ui.resolve(e).Text({ children: [e.props.isExpanded ? 'opened' : 'folded'] }) as never)
+  conversation(on, [])
+  const shot = { tool_use_id: 'off-s', tool: 'mcp__plugin_jev-reach_chrome-devtools__take_screenshot', input: {}, isRunning: false, isErrored: false, isInterrupted: false, output: engineResult(ONE_PX, 'image/png', null) }
+  const row = await $.ui.mount({ plugin: 'glass', surface: 'terminal', component: 'ToolResult', props: { tool_use_id: 'off-s', tool: shot.tool, isErrored: false, isExpanded: false, output: shot.output } })
+  expect(await row.find({ type: 'Image' })).toBeUndefined()
+  expect(await row.find({ type: 'Text', text: /engine body/ })).toBeDefined()
+  await row.unmount()
+  const page = { tool_use_id: 'off-p', tool: 'mcp__plugin_jev-reach_chrome-devtools__new_page', input: {}, isRunning: false, isErrored: false, isInterrupted: false, output: [{ type: 'text', text: 'ok' }] }
+  const g = await $.ui.mount({ plugin: 'glass', surface: 'terminal', component: 'ToolGroup', props: { calls: [page, shot, readCall('off-r', '/tmp/off.png')], isActive: false, isExpanded: false } })
+  expect(await g.findAll({ type: 'Image' })).toHaveLength(0)
+  expect(await g.find({ type: 'Text', text: /opened/ })).toBeUndefined()
+  await g.unmount()
 })

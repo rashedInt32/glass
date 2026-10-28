@@ -182,8 +182,11 @@ function bashBody(t: Elements['terminal'], p: Palette, output: unknown, isErrore
 // are, so pictures draw there (live, 2026-10-28).
 let inTmux = false
 // the `screenshots` option (0.7.0): off, every screenshot row keeps the
-// engine's text body, in tmux and out; follows /config live
-let shotsOn = true
+// engine's text body, in tmux and out; follows /config live. Off unless
+// turned on (0.17.1): a devtools run takes a screenshot a step, and drawn
+// they buried the turn's result.
+let shotsOn = false
+const isOn = (v: unknown) => v === true || v === 'true'
 
 // Pictures Claude looked at (0.8.0): MCP screenshots in any format, and
 // image files it read. `home` and the person's recent prompts tell which
@@ -387,7 +390,7 @@ export const register: Register = (on, options) => {
   let paletteName = paletteNameOf(opts.palette)
   // notifications (0.5.0): on unless the option says otherwise; follows /config live
   let notifyOn = opts.notify !== false
-  shotsOn = opts.screenshots !== false
+  shotsOn = isOn(opts.screenshots)
   // gutter marks are off for a turn whose prompt asked for writing: the
   // reply is then the thing itself and asks nothing of the reader
   let marks = true
@@ -478,7 +481,7 @@ export const register: Register = (on, options) => {
 
   on('config.set', { key: 'glass.screenshots' }, async ($, e, next) => {
     const result = await next(e)
-    shotsOn = e.value !== false
+    shotsOn = isOn(e.value)
     $.ui.invalidate('ui.render')
     return result
   })

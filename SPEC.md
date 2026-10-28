@@ -436,10 +436,12 @@ and reply blocks interleaved as the model made them, then the
   is set: the person vouches that pictures get through. **(0.17.0)**
   sluice passes the engine's kitty codes through as they are, so pictures
   draw there with no switch (live, Ghostty 1.4, engine 2.1.312).
-  **(0.7.0)** `userConfig.screenshots` (boolean, default true; owner's
-  request 2026-10-12) turns all of it off: every screenshot row keeps the
+  **(0.7.0)** `userConfig.screenshots` (boolean; owner's request
+  2026-10-12) turns all of it off: every screenshot row keeps the
   engine's text body, in tmux and out, and a group no longer opens for
-  one. It follows `/config` live. Shape proved live with a probe mod
+  one. It follows `/config` live. **(0.17.1)** Off by default (owner's
+  pick 2026-10-28: a devtools run takes a screenshot each step, and drawn
+  they buried the turn's result); only `true` (or `"true"`) turns it on. Shape proved live with a probe mod
   2026-10-12.
   **(0.8.0)** Every picture Claude looked at, owner's pick 2026-10-12 after
   30 days of transcripts showed 119 of 411 screenshots were JPEG (drawn as

@@ -83,8 +83,9 @@ The same turn under each palette: pick one with `/config` under Glass.
   your own prompt. JPEG, WebP and GIF are converted to PNG with macOS
   `sips`. Ghostty or kitty, plain or inside [sluice](https://github.com/rashedInt32/sluice).
   Inside tmux the row keeps its text, unless `CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1`
-  says the pictures reach the terminal. Off with the `screenshots` option
-  under Glass in `/config`.
+  says the pictures reach the terminal. Off by default, since a devtools
+  run takes a screenshot each step: turn it on with
+  `/config glass.screenshots=true`, or under Glass in `/config`.
 - **Headings, lists, quotes, tables.** Bold colored headings with no rules,
   `•` `◦` `☐` `☑` markers, a quote bar, borderless tables with aligned
   columns and right-aligned numbers. A table a little too wide squeezes
