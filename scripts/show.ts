@@ -165,6 +165,19 @@ const QUOTE_AND_FENCES = [
   '```',
 ].join('\n')
 
+// 0.18.0: the prompt tip card under a Bottom line, so the two read apart
+const TIP = [
+  '**Bottom line**',
+  'Verified: the build passes and devtools shows the hero on 375px.',
+  'Issue: the title overflows below 360px.',
+  'Fix: clamp the title size in the hero block.',
+  '',
+  'The fix is one line in `hero.tsx`.',
+  '',
+  '> **' + String.fromCodePoint(0x270e) + ' Prompt tip:** "Get confident" has no finish line. Name the questions it must answer.',
+  '> *"Investigate the migration again before any code. List what still breaks against v17 and which Base parts we still need to port. Stop there and show me."*',
+].join('\n')
+
 const turn = {
   turnId: 'demo', durationMs: 146_000, tools: 4, edits: 1, failed: 1, inTokens: 1_800_000, cacheTokens: 1_620_000, outTokens: 5300,
   costUsd: 0.58, lastToolId: 't4', answer: 'done', startedAt: 0, finishedAt: 146_000,
@@ -179,6 +192,7 @@ function fixtures(m: Mods, paletteName = PALETTE): Record<string, () => Node | n
   return {
     reply: () => m.render.renderReply(...([t, m.markdown.parseMarkdown(REPLY), p, { first: true, columns, marks: true }] as never[])),
     lists: () => m.render.renderReply(...([t, m.markdown.parseMarkdown(LISTS), p, { first: true, columns, marks: false }] as never[])),
+    tip: () => m.render.renderReply(...([t, m.markdown.parseMarkdown(TIP), p, { first: true, columns, marks: false }] as never[])),
     'quote-fences': () => m.render.renderReply(...([t, m.markdown.parseMarkdown(QUOTE_AND_FENCES), p, { first: true, columns, marks: false }] as never[])),
     // a Bash body shown whole against one that folds (the count only on the second)
     'bash-bodies': () =>

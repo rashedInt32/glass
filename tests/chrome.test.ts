@@ -956,3 +956,56 @@ test('0.16.1: safeText never cuts an emoji in half', () => {
   expect(safeText('a'.repeat(1997) + '\u{1F600}tail', 2000)).toBe('a'.repeat(1997) + '\u{1F600}' + G.ellipsis)
   expect(safeText('short \u{1F600}', 2000)).toBe('short \u{1F600}')
 })
+
+const TIP = '> **' + cp(0x270e) + ' Prompt tip:** "Get confident" has no finish line.\n> *"Investigate the migration again. Stop and show me."*'
+
+test('a prompt tip quote is a tip card: Why from the head line, Try from the rest', async () => {
+  const b = parseMarkdown('Answer.\n\n' + TIP)[1]
+  expect(b?.kind).toBe('callout')
+  if (b?.kind !== 'callout') return
+  expect(b.tone).toBe('tip')
+  expect(b.rows.map(r => r.label)).toEqual(['Why', 'Try'])
+  // no glyph, a colon outside the bold, the reason on its own line: still a tip
+  const bare = parseMarkdown('> **Prompt tip**:\n> reason\n> *"rewrite"*')[0]
+  expect(bare?.kind === 'callout' && bare.rows.map(r => r.label)).toEqual(['Why', 'Try'])
+  // any other quote stays a quote
+  expect(parseMarkdown('> **Note:** x')[0]?.kind).toBe('quote')
+})
+
+test('a prompt tip streams: the head alone is already a card', async () => {
+  const b = parseMarkdown('> **' + cp(0x270e) + ' Prompt tip:**')[0]
+  expect(b?.kind === 'callout' && b.tone).toBe('tip')
+  expect(b?.kind === 'callout' && b.rows.length).toBe(0)
+  // a bare tip head never takes a list under it the way a Bottom line does
+  const blocks = parseMarkdown('> **Prompt tip:**\n\n- a\n- b')
+  expect(blocks.map(x => x.kind)).toEqual(['callout', 'list'])
+})
+
+test('the tip card: gold title and bar, the Try row italic in the user color', async () => {
+  const all = elements(reply(TIP))
+  const title = all.find(n => n.type === 'Text' && String((n.props.children as unknown[])[0]).startsWith(G.pencil))!
+  expect(title.props.color).toBe(p.mark)
+  expect(String((title.props.children as unknown[])[0])).toBe(G.pencil + ' Prompt tip')
+  const bar = all.find(n => n.type === 'Text' && String((n.props.children as unknown[])[0]).startsWith(G.mark))!
+  expect(bar.props.color).toBe(p.mark)
+  const tryText = all.find(n => n.type === 'Text' && n.props.italic === true && n.props.color === p.accentUser && n.props.wrap === 'wrap')
+  expect(tryText).toBeDefined()
+  expect(flat(reply(TIP))).toContain('Why  ')
+  // no quote bar around the card: the card's own is the only bar
+  expect(all.filter(n => n.type === 'Text' && String((n.props.children as unknown[])[0]).startsWith(G.mark)).length).toBe(1)
+})
+
+test('the tip card bar runs every wrapped row on a narrow terminal', async () => {
+  const md = '> **Prompt tip:** ' + 'word '.repeat(12) + '\n> *"' + 'again '.repeat(12) + '"*'
+  const all = elements(reply(md, 50))
+  const bar = all.find(n => n.type === 'Text' && n.props.color === p.mark && String((n.props.children as unknown[])[0]).startsWith(G.mark))!
+  const rows = String((bar.props.children as unknown[])[0]).split('\n').length
+  expect(rows).toBeGreaterThan(2)
+  // the reply's row estimate counts the title line plus the bar
+  const b = parseMarkdown(md)[0]!
+  expect(quoteRows([b], 52)).toBe(rows + 1)
+})
+
+test('the pencil is one cell', async () => {
+  expect(cellWidth(G.pencil)).toBe(1)
+})

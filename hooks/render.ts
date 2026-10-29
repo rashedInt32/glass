@@ -41,6 +41,9 @@ const LABEL_COLOR: Record<string, keyof Palette> = {
   Issue: 'issue',
   Fix: 'fix',
 }
+// the prompt tip's labels are three wide, so its column is too
+const TIP_LABEL_WIDTH = 3
+const labelWidth = (tone?: 'tip') => (tone === 'tip' ? TIP_LABEL_WIDTH : LABEL_WIDTH)
 
 // the API bounds a Text or Code string at this many characters
 const MAX_TEXT = 10000
@@ -185,7 +188,7 @@ function renderBlock(c: Ctx, b: Block): RenderElement {
     case 'table':
       return renderTable(c, b.header, b.align, b.rows, b.raw)
     case 'callout':
-      return renderCallout(c, b.title, b.rows)
+      return renderCallout(c, b.title, b.rows, b.tone)
   }
 }
 
@@ -449,9 +452,10 @@ function blockRows(b: Block, m: number): number {
       // a table too wide even squeezed is the engine's Markdown, estimated as raw is
       return tableColumns(b.header, b.rows, m) ? b.rows.length + 2 : wrappedLines([{ kind: 'text', text: b.raw }], m)
     case 'callout': {
-      const rowWidth = (r: CalloutRow) => 2 + LABEL_WIDTH + 2 + inlineWidth(r.inlines) + 1
+      const lw = labelWidth(b.tone)
+      const rowWidth = (r: CalloutRow) => 2 + lw + 2 + inlineWidth(r.inlines) + 1
       const width = cardWidth(m, Math.max(0, ...b.rows.map(rowWidth)))
-      const textWidth = width - 2 - LABEL_WIDTH - 2 - 1
+      const textWidth = width - 2 - lw - 2 - 1
       return 1 + Math.max(1, b.rows.reduce((n, r) => n + wrappedLines(r.inlines, textWidth), 0))
     }
   }
@@ -566,20 +570,31 @@ function wrappedLines(inlines: Inline[], width: number): number {
 // the card, the row count computed from the same wrapping the engine
 // applies. Compact: no padding and no blank rows; the colored label column
 // keeps the rows apart.
-function renderCallout(c: Ctx, title: string, rows: CalloutRow[]): RenderElement {
+// tone 'tip' (0.18.0) is the prompt tip: same card, the palette's `mark`
+// gold for the title, bar and labels so it never reads as a Bottom line,
+// and the Try row (the rewritten prompt) italic in the user row's color.
+function renderCallout(c: Ctx, title: string, rows: CalloutRow[], tone?: 'tip'): RenderElement {
   const { t, p } = c
-  const rowWidth = (r: CalloutRow) => 2 + LABEL_WIDTH + 2 + inlineWidth(r.inlines) + 1
+  const tip = tone === 'tip'
+  const lw = labelWidth(tone)
+  const bar = tip ? p.mark : p.calloutBar
+  const rowWidth = (r: CalloutRow) => 2 + lw + 2 + inlineWidth(r.inlines) + 1
   const width = cardWidth(c.m, Math.max(0, ...rows.map(rowWidth)))
-  const textWidth = width - 2 - LABEL_WIDTH - 2 - 1
+  const textWidth = width - 2 - lw - 2 - 1
   const lines = rows.map(r => wrappedLines(r.inlines, textWidth))
   // each row's wrapped lines; the title is outside the card
   const height = Math.max(1, lines.reduce((n, l) => n + l, 0))
+  const labelColor = (r: CalloutRow) => (tip ? (r.label === 'Try' ? p.accentUser : p.mark) : p[LABEL_COLOR[r.label] ?? 'calloutText'])
+  const rowText = (r: CalloutRow) =>
+    tip && r.label === 'Try'
+      ? t.Text({ color: p.accentUser, italic: true, wrap: 'wrap', children: renderInlines({ ...c, tone: p.accentUser }, r.inlines) })
+      : t.Text({ color: p.calloutText, wrap: 'wrap', children: renderInlines(c, r.inlines) })
   const card = t.Box({
     flexDirection: 'row',
     width,
     backgroundColor: p.blockBg,
     children: [
-      t.Box({ width: 1, children: [t.Text({ color: p.calloutBar, children: [Array(height).fill(G.mark).join('\n')] })] }),
+      t.Box({ width: 1, children: [t.Text({ color: bar, children: [Array(height).fill(G.mark).join('\n')] })] }),
       t.Box({
         flexDirection: 'column',
         flexGrow: 1,
@@ -591,15 +606,15 @@ function renderCallout(c: Ctx, title: string, rows: CalloutRow[]): RenderElement
             children: [
               // a fixed-width box, so a long row never squeezes the label column
               t.Box({
-                width: LABEL_WIDTH + 2,
+                width: lw + 2,
                 flexShrink: 0,
-                children: [t.Text({ bold: true, color: p[LABEL_COLOR[r.label] ?? 'calloutText'], children: [r.label.padEnd(LABEL_WIDTH) + '  '] })],
+                children: [t.Text({ bold: true, color: labelColor(r), children: [r.label.padEnd(lw) + '  '] })],
               }),
               t.Box({
                 flexGrow: 1,
                 flexShrink: 1,
                 paddingRight: 1,
-                children: [t.Text({ color: p.calloutText, wrap: 'wrap', children: renderInlines(c, r.inlines) })],
+                children: [rowText(r)],
               }),
             ],
           }),
@@ -609,7 +624,7 @@ function renderCallout(c: Ctx, title: string, rows: CalloutRow[]): RenderElement
   })
   return t.Box({
     flexDirection: 'column',
-    children: [t.Text({ bold: true, color: p.calloutBar, children: [title] }), card],
+    children: [t.Text({ bold: true, color: bar, children: [tip ? G.pencil + ' ' + title : title] }), card],
   })
 }
 

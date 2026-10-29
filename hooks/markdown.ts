@@ -1,6 +1,6 @@
 // A small markdown reader for assistant replies. It covers what the mod
 // draws itself: paragraphs, headings, lists, fences, rules, tables, quotes
-// and the Bottom line callout. Raw html is kept for the engine's own
+// and the Bottom line callout (plus the prompt tip card). Raw html is kept for the engine's own
 // Markdown element. Streaming-safe: unclosed markup stays literal, and a
 // callout, once its head line is seen, stays a callout as rows arrive.
 
@@ -25,7 +25,8 @@ export type Block =
   | { kind: 'quote'; blocks: Block[] }
   // align: null where the separator names none (`---`), so a numeric column can right-align
   | { kind: 'table'; header: Inline[][]; align: (Align | null)[]; rows: Inline[][][]; raw: string }
-  | { kind: 'callout'; title: string; rows: CalloutRow[] }
+  // tone 'tip': the prompt tip card (0.18.0), Why / Try rows in the mark color
+  | { kind: 'callout'; title: string; rows: CalloutRow[]; tone?: 'tip' }
 
 const LIST_RE = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/
 const TASK_RE = /^\[([ xX])\]\s+(.*)$/
@@ -40,6 +41,9 @@ const QUOTE_RE = /^\s*>\s?(.*)$/
 const RAW_START_RE = /^\s*<[a-zA-Z!/]/
 // `**Bottom line**`, `**Bottom line**:` and `**Bottom line:**`
 const CALLOUT_HEAD_RE = /^\*\*(Bottom line):?\*\*:?\s*$/i
+// a quote opening `**<glyph> Prompt tip:** reason`; the glyph is optional and
+// any one symbol, so this file stays ASCII
+const TIP_HEAD_RE = /^\*\*(?:\S+\s+)?(Prompt tip):?\*\*:?\s*(.*)$/i
 const CALLOUT_ROW_RE = /^(?:[-*+]\s+)?\*{0,2}(Verified|Issue|Fix)\s*:?\*{0,2}\s*:?\s+(.*)$/
 
 // U+FE0F after a symbol that is not an emoji by default (U+26A0 and kin)
@@ -114,7 +118,7 @@ export function parseMarkdown(input: string): Block[] {
     if (QUOTE_RE.test(line)) {
       const inner: string[] = []
       while (i < lines.length && lines[i]!.trim() !== '') inner.push(lines[i++]!.replace(QUOTE_RE, '$1'))
-      blocks.push({ kind: 'quote', blocks: parseMarkdown(inner.join('\n')) })
+      blocks.push(tipBlock(inner) ?? { kind: 'quote', blocks: parseMarkdown(inner.join('\n')) })
       continue
     }
     if (RAW_START_RE.test(line)) {
@@ -226,6 +230,19 @@ function paragraphBlock(lines: string[]): Block {
   return { kind: 'paragraph', inlines: parseInline(lines.join('\n')) }
 }
 
+// The prompt tip: a quote whose first line is the tip head. The reason is
+// the Why row, every later line is the Try row (the rewritten prompt).
+// Monotonic like the Bottom line: the head alone is already a card.
+function tipBlock(inner: string[]): Block | null {
+  const head = TIP_HEAD_RE.exec(inner[0]!.trim())
+  if (!head) return null
+  const body = [head[2]!, ...inner.slice(1)].map(l => l.trim()).filter(l => l !== '')
+  const rows: CalloutRow[] = []
+  if (body.length > 0) rows.push({ label: 'Why', inlines: parseInline(body[0]!) })
+  if (body.length > 1) rows.push({ label: 'Try', inlines: parseInline(body.slice(1).join(' ')) })
+  return { kind: 'callout', title: head[1]!, rows, tone: 'tip' }
+}
+
 // `**Bottom line**` as a title-only card followed by a list: the list items
 // are its rows
 function mergeCallouts(blocks: Block[]): Block[] {
@@ -233,7 +250,7 @@ function mergeCallouts(blocks: Block[]): Block[] {
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i]!
     const next = blocks[i + 1]
-    if (b.kind === 'callout' && b.rows.length === 0 && next?.kind === 'list') {
+    if (b.kind === 'callout' && b.tone !== 'tip' && b.rows.length === 0 && next?.kind === 'list') {
       out.push({ kind: 'callout', title: b.title, rows: next.items.map(it => calloutRow(inlineText(it.inlines))) })
       i++
       continue
