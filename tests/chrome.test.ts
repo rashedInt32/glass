@@ -988,7 +988,7 @@ test('the tip card: gold title and bar, the Try row italic in the user color', a
   expect(String((title.props.children as unknown[])[0])).toBe(G.pencil + ' Prompt tip')
   const bar = all.find(n => n.type === 'Text' && String((n.props.children as unknown[])[0]).startsWith(G.mark))!
   expect(bar.props.color).toBe(p.mark)
-  const tryText = all.find(n => n.type === 'Text' && n.props.italic === true && n.props.color === p.accentUser && n.props.wrap === 'wrap')
+  const tryText = all.find(n => n.type === 'Text' && n.props.italic === true && n.props.color === p.ok && n.props.wrap === 'wrap')
   expect(tryText).toBeDefined()
   expect(flat(reply(TIP))).toContain('Why  ')
   // no quote bar around the card: the card's own is the only bar

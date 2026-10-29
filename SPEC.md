@@ -282,8 +282,10 @@ docs/shots/        (0.10.0) one demo turn per palette, 100 columns on the owner'
   bold) is drawn as the Bottom line card, not a quote. The reason is the
   `Why` row; every later line, joined, is the `Try` row (the rewritten
   prompt). Title `✎ Prompt tip`; title, bar and `Why` in `mark` so it never
-  reads as a Bottom line; `Try` label and text in `accentUser`, the text
-  italic, so the rewrite reads as the person's own words. Labels padded to
+  reads as a Bottom line; `Try` label and text in `ok`, the text
+  italic, so the rewrite reads as the better version (0.18.1; 0.18.0 used
+  `accentUser`, which in prism is coral beside the error red and read as a
+  failure). Labels padded to
   3. Monotonic like the Bottom line: the head line alone is a card. Any
   other quote stays a quote. Approved by screenshot 2026-10-29.
 - Rule: `─` repeated to min(M, 60) in `rule`.

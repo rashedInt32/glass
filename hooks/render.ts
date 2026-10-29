@@ -572,7 +572,8 @@ function wrappedLines(inlines: Inline[], width: number): number {
 // keeps the rows apart.
 // tone 'tip' (0.18.0) is the prompt tip: same card, the palette's `mark`
 // gold for the title, bar and labels so it never reads as a Bottom line,
-// and the Try row (the rewritten prompt) italic in the user row's color.
+// and the Try row (the rewritten prompt) italic in `ok`: the better
+// version. `accentUser` was 0.18.0; prism's is coral, beside its error red.
 function renderCallout(c: Ctx, title: string, rows: CalloutRow[], tone?: 'tip'): RenderElement {
   const { t, p } = c
   const tip = tone === 'tip'
@@ -584,10 +585,10 @@ function renderCallout(c: Ctx, title: string, rows: CalloutRow[], tone?: 'tip'):
   const lines = rows.map(r => wrappedLines(r.inlines, textWidth))
   // each row's wrapped lines; the title is outside the card
   const height = Math.max(1, lines.reduce((n, l) => n + l, 0))
-  const labelColor = (r: CalloutRow) => (tip ? (r.label === 'Try' ? p.accentUser : p.mark) : p[LABEL_COLOR[r.label] ?? 'calloutText'])
+  const labelColor = (r: CalloutRow) => (tip ? (r.label === 'Try' ? p.ok : p.mark) : p[LABEL_COLOR[r.label] ?? 'calloutText'])
   const rowText = (r: CalloutRow) =>
     tip && r.label === 'Try'
-      ? t.Text({ color: p.accentUser, italic: true, wrap: 'wrap', children: renderInlines({ ...c, tone: p.accentUser }, r.inlines) })
+      ? t.Text({ color: p.ok, italic: true, wrap: 'wrap', children: renderInlines({ ...c, tone: p.ok }, r.inlines) })
       : t.Text({ color: p.calloutText, wrap: 'wrap', children: renderInlines(c, r.inlines) })
   const card = t.Box({
     flexDirection: 'row',
