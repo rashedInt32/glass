@@ -58,6 +58,7 @@ hooks/
   theme.ts      (0.5.0) palette -> engine theme slots, theme JSON
   width.ts      cellWidth, clip helpers (the one ruler)
   glyphs.ts     every non-ASCII glyph, by code point
+  storage.ts    (0.19.0) /storage: disk report and clean
   hooks.json    { "modules": ["./register.ts"] }
 types/index.d.ts   the $.state contract (PluginState.glass)
 tests/             parse.test.ts, chrome.test.ts, (0.5.0) theme.test.ts, demo.test.ts
@@ -931,6 +932,47 @@ Two directions, settled 2026-10-11.
   `$.ui.notify` is guarded; `isSummary` and `serverToolUses` are optional
   props; Buttons use `label` only; theme keys resolve on any engine that
   has the slots (they predate the typing). No runtime version check.
+
+### **(0.19.0)** `/storage`
+
+The desktop app's storage page, for the terminal. Code in `hooks/storage.ts`.
+
+- `/storage` answers with no model turn: Claude Code's total, then
+  transcripts (`~/.claude/projects`), CLI versions
+  (`~/.local/share/claude/versions`), plugins, file history, worktrees
+  under `<repo>/.claude/worktrees`, and the rest of `~/.claude`. Then the
+  eight largest projects, named by the `~/.claude.json` project key whose
+  `projectDirName` matches, and what `/storage clean` would free. Sizes
+  are `du -skl` by `$.process.run`, batched 500 paths a call (`-l`: GNU
+  du prints nothing for a path nested under an earlier argument).
+- `/storage clean [days]` (30 by default) offers three groups in one
+  multi-select `$.ui.ask`: sessions whose transcript is older than `days`
+  (never the running session; a session is its `<id>.jsonl`, its `<id>/`
+  folder and `file-history/<id>`), CLI versions no live process runs, and
+  Claude worktrees that are clean or missing. A version is in use when
+  `~/.local/bin/claude` resolves to it (matched by name: realPath turns
+  `/tmp` into `/private/tmp`), when `$.session.version()` names it, or
+  when `~/.local/state/claude/locks/<version>#<pid>.lock` has a live pid
+  (`ps -p`): the updater moves the symlink under running sessions. A
+  worktree that git lists `locked` (the engine locks every worktree a
+  live session or agent uses) or `detached` (its commits may sit on no
+  branch) is never offered. Dismissed, or under `-p` where `ask` rejects: `Nothing
+  cleared.` and nothing is touched. Labels hold no comma, so the
+  comma-joined answer matches by label.
+- Removal: `rm -rf --` in batches of 200, every path through
+  `isSafeTarget` first (a session id under the transcripts or
+  file-history root, a version under the versions root; never a project
+  folder or `memory/`). Worktrees go by `git worktree remove` without
+  `--force`, so git refuses one that changed since the scan, and the
+  branch stays. A missing one goes by the same `remove`, which drops its
+  entry alone; a bare `git worktree prune` would drop every prunable
+  worktree in the repo, the person's own moved ones too. A worktree holding
+  the session's cwd is never offered. Worktrees are deduped by git's path:
+  one repo can sit under two config keys.
+- Verified live 2026-11-05 on 2.1.318 against a fake HOME: report,
+  dismiss, `-p`, and a full clear (old session, its folder and history
+  gone; new session and `memory/` kept; current version kept; clean
+  worktree removed with its branch kept; dirty worktree kept).
 
 ## Glyphs
 

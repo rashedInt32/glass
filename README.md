@@ -132,6 +132,14 @@ The same turn under each palette: pick one with `/config` under Glass.
 - **Fold and Copy.** A chevron at the right of the dots line folds that
   turn's tree; `⧉ Copy` takes the finished answer to the clipboard.
   `/fold` and `/unfold` do the same from the keyboard.
+- **Storage.** `/storage` shows how much disk Claude Code uses: transcripts
+  by project, CLI versions, plugins, file history and worktrees.
+  `/storage clean` offers to clear sessions idle 30+ days, CLI versions
+  no running session uses, and clean worktrees under `.claude/worktrees`
+  that sit on a branch and no live session holds. It deletes
+  only what you tick. `/storage clean 14` counts sessions idle 14+ days.
+  A cleared session is gone from `/resume`. A cleared worktree keeps its
+  branch.
 
 Every width is measured the way the engine measures cells, so emoji and
 CJK in tables stay aligned.
