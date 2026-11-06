@@ -63,7 +63,7 @@ export function makePainter(opts: { columns: number; slots: Record<string, strin
       ...inherited,
       ...(typeof p.color === 'string' ? { fg: p.color } : {}),
       ...(typeof p.backgroundColor === 'string' ? { bg: p.backgroundColor } : {}),
-      ...(p.bold ? { bold: true } : {}),
+      ...(p.bold || p.weight === 'semibold' || p.weight === 'bold' ? { bold: true } : {}),
       ...(p.dimColor ? { dim: true } : {}),
       ...(p.italic ? { italic: true } : {}),
       ...(p.underline ? { underline: true } : {}),

@@ -410,22 +410,25 @@ and reply blocks interleaved as the model made them, then the
 - Every Bash result is glass's, drawn under its `ToolUse` row from the
   row's own `output` (calls run in parallel drew no `ToolResult`); the
   `ToolResult` row then draws nothing. Stdout and stderr painted for the
-  first 3 lines (commands with evidence,
+  first 3 lines, or every line where the view draws the row whole
+  (`isExpanded`: ctrl+o, `--verbose`, an unfolded group, one glass opened
+  for a failure too; 0.19.1) (commands with evidence,
   paths and URLs, error, warning and success words, numbers and durations,
   check and cross marks, git status codes; unpainted text in `meta`), each
-  line clipped to one row (`truncate-end`; ctrl+o has them whole), the
-  rest `… +N lines` in `faint`. A line is cut to 1000 characters and loses
+  line clipped to one row (`truncate-end`, in ctrl+o too: the trunk is one
+  row per line), the rest `… +N lines` in `faint`. A line is cut to 1000 characters and loses
   its control characters first (a minified JSON line got the whole tree
   refused); a carriage return starts the line over, so a progress bar
   shows its last pass. A failed command the same way with its error words
   in `err`. Nothing printed: one `faint` `(No output)` line. The engine
-  keeps only interrupted results and raw escape-coded output. Trade
-  accepted: a long result's ctrl+o expansion is no longer the engine's
-  collapsed body. (Rewriting `output` with SGR codes was tried first: the
+  keeps only interrupted results and raw escape-coded output. (Before
+  0.19.1 ctrl+o also stopped at 3 lines: glass's hooks run there too.) (Rewriting `output` with SGR codes was tried first: the
   engine strips them.)
 - A failed call other than Bash draws its reason's first line in `err` on
   the trunk, the rest a `faint` `… +N lines`, in place of the engine's
-  `Error editing file` and its corner bracket. The `[Image #N]` row under
+  `Error editing file` and its corner bracket. In ctrl+o and `--verbose`
+  (`ToolResult.isExpanded`) the engine's whole reason draws instead, as do
+  its bodies for the Agent launch and Skill lines (0.19.1). The `[Image #N]` row under
   an image prompt is still the engine's.
 - **(0.6.0)** An MCP result carrying a PNG (chrome-devtools
   `take_screenshot`, a Figma screenshot) draws the picture on the trunk in

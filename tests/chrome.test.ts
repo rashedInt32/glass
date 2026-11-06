@@ -233,6 +233,46 @@ test('mounted: a user row, a tree row, a folded group and the band validate on t
   })
   expect(await group.find({ type: 'Text', text: /a\.ts/ })).toBeDefined()
   await group.unmount()
+})
+
+// ctrl+o and --verbose set isExpanded: glass's compact forms must not hide
+// what the engine would show there (live 2026-11-06: ctrl+o showed `seq 1 8`
+// as three lines and `+5 lines`, a failed call's reason cut to one line)
+test('mounted: an expanded view draws a Bash body whole and gives the one-line results back', async ($, on) => {
+  // the engine's own result body, beneath glass
+  on('ui.render', { component: 'ToolResult' }, (engine, e) => engine.ui.resolve(e).Text({ children: ['engine body'] }) as never)
+  const bash = (isExpanded: boolean) => ({
+    tool_use_id: 'toolu_x1', tool: 'Bash', input: { command: 'seq 1 8' }, isRunning: false, isErrored: false, isInterrupted: false, isExpanded,
+    output: { stdout: '1\n2\n3\n4\n5\n6\n7\n8\n', stderr: '' },
+  })
+  const folded = await $.ui.mount({ plugin: 'glass', surface: 'terminal', component: 'ToolUse', props: bash(false) })
+  expect(await folded.find({ type: 'Text', text: /\+5 lines/ })).toBeDefined()
+  await folded.unmount()
+  const whole = await $.ui.mount({ plugin: 'glass', surface: 'terminal', component: 'ToolUse', props: bash(true) })
+  expect(await whole.find({ type: 'Text', text: /\+\d+ lines?/ })).toBeUndefined()
+  expect(await whole.find({ type: 'Text', text: /^8$/ })).toBeDefined()
+  await whole.unmount()
+
+  const error = (isExpanded: boolean) => ({
+    tool_use_id: 'toolu_x2', tool: 'Grep', isErrored: true, isExpanded,
+    output: '<tool_use_error>Error: first line of the reason\nsecond line of the reason</tool_use_error>',
+  })
+  const short = await $.ui.mount({ plugin: 'glass', surface: 'terminal', component: 'ToolResult', props: error(false) as never })
+  expect(await short.find({ type: 'Text', text: /\+1 line/ })).toBeDefined()
+  await short.unmount()
+  const full = await $.ui.mount({ plugin: 'glass', surface: 'terminal', component: 'ToolResult', props: error(true) as never })
+  expect(await full.find({ type: 'Text', text: /\+1 line/ })).toBeUndefined()
+  expect(await full.find({ type: 'Text', text: /engine body/ })).toBeDefined()
+  await full.unmount()
+
+  const skill = (isExpanded: boolean) => ({ tool_use_id: 'toolu_x3', tool: 'Skill', isErrored: false, isExpanded, output: { success: true, commandName: 'rv' } })
+  const line = await $.ui.mount({ plugin: 'glass', surface: 'terminal', component: 'ToolResult', props: skill(false) as never })
+  expect(await line.find({ type: 'Text', text: /skill loaded/ })).toBeDefined()
+  await line.unmount()
+  const back = await $.ui.mount({ plugin: 'glass', surface: 'terminal', component: 'ToolResult', props: skill(true) as never })
+  expect(await back.find({ type: 'Text', text: /skill loaded/ })).toBeUndefined()
+  expect(await back.find({ type: 'Text', text: /engine body/ })).toBeDefined()
+  await back.unmount()
 
   // a task's notification and another agent's message: both rows carry a
   // hover, so both need a key or the validator refuses them
@@ -588,7 +628,7 @@ test('the fence header draws in faint, no dimColor left in a reply', async () =>
 
 test('H2 steps one shade under H1 toward meta; H3 keeps its own key', async () => {
   const all = elements(reply('# One\n\n## Two\n\n### Three'))
-  const color = (s: string) => all.find(n => n.type === 'Text' && n.props.bold && JSON.stringify(n.props.children).includes(s))?.props.color as string
+  const color = (s: string) => all.find(n => n.type === 'Text' && n.props.weight === 'semibold' && JSON.stringify(n.props.children).includes(s))?.props.color as string
   expect(color('One')).toBe(p.heading)
   expect(color('Three')).toBe(p.heading3)
   expect(color('Two')).not.toBe(p.heading)
@@ -676,7 +716,7 @@ test('the band: a view Button on every row (0.10.0), back on the row in view, no
   ;(buttons[1]!.props.onPress as () => void)()
   expect(pressed).toEqual(['view:a1', 'back'])
   // the row in view carries its name in accent, the other in bold
-  const names = elements(band).filter(n => n.type === 'Text' && typeof n.props.bold === 'boolean' && /Hunt widths|Review the diff/.test(flat(n as unknown as RenderNode)))
+  const names = elements(band).filter(n => n.type === 'Text' && n.props.weight === 'semibold' && /Hunt widths|Review the diff/.test(flat(n as unknown as RenderNode)))
   expect(names.map(n => n.props.color)).toEqual([p.bold, p.accent])
   // the button's cells come off the file column: every row stays the band wide
   for (const columns of [100, 84, 72, 60, 44]) {

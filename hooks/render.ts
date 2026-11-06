@@ -170,7 +170,7 @@ function renderBlock(c: Ctx, b: Block): RenderElement {
     }
     case 'heading':
       return t.Text({
-        bold: true,
+        weight: 'semibold',
         // H2 one step under H1, toward `meta`, so section levels survive a long reply
         color: b.level >= 3 ? p.heading3 : b.level === 2 ? blend(p.heading, p.meta, H2_STEP) : p.heading,
         children: renderInlines(c, b.inlines),
@@ -517,7 +517,7 @@ function renderTable(c: Ctx, header: Inline[][], align: (Align | null)[], rows: 
     const left = last && inlineWidth(inlines) === 0 ? 0 : a === 'right' ? pad : a === 'center' ? Math.floor(pad / 2) : 0
     const right = last ? 0 : pad - left
     return t.Text({
-      ...(isHeader ? { bold: true, color: p.bold } : {}),
+      ...(isHeader ? { weight: 'semibold' as const, color: p.bold } : {}),
       children: [' '.repeat(left), ...renderInlines(c, inlines), ' '.repeat(right) + (last ? '' : '  ')],
     })
   }
@@ -609,7 +609,7 @@ function renderCallout(c: Ctx, title: string, rows: CalloutRow[], tone?: 'tip'):
               t.Box({
                 width: lw + 2,
                 flexShrink: 0,
-                children: [t.Text({ bold: true, color: labelColor(r), children: [r.label.padEnd(lw) + '  '] })],
+                children: [t.Text({ weight: 'semibold', color: labelColor(r), children: [r.label.padEnd(lw) + '  '] })],
               }),
               t.Box({
                 flexGrow: 1,
@@ -625,7 +625,7 @@ function renderCallout(c: Ctx, title: string, rows: CalloutRow[], tone?: 'tip'):
   })
   return t.Box({
     flexDirection: 'column',
-    children: [t.Text({ bold: true, color: bar, children: [tip ? G.pencil + ' ' + title : title] }), card],
+    children: [t.Text({ weight: 'semibold', color: bar, children: [tip ? G.pencil + ' ' + title : title] }), card],
   })
 }
 
@@ -637,7 +637,7 @@ function renderInlines(c: Ctx, inlines: Inline[]): RenderNode[] {
         return c.tone ? [t.Text({ color: c.tone, children: renderProse(c, n.text) })] : renderProse(c, n.text)
       case 'bold':
         // bold keeps its own color inside a muted block
-        return [t.Text({ bold: true, color: p.bold, children: renderInlines({ ...c, tone: undefined }, n.children) })]
+        return [t.Text({ weight: 'semibold', color: p.bold, children: renderInlines({ ...c, tone: undefined }, n.children) })]
       case 'italic':
         return [t.Text({ italic: true, children: renderInlines(c, n.children) })]
       case 'strike':

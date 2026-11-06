@@ -154,10 +154,13 @@ async function installTheme($: EngineInterface, name: PaletteName): Promise<stri
 // Drawn under the ToolUse row from its own `output` (2026-10-04): calls run
 // in parallel drew their row with no ToolResult under it, so the body went
 // missing; the ToolResult row then draws nothing where this is non-null.
-function bashBody(t: Elements['terminal'], p: Palette, output: unknown, isErrored: boolean, cols: number): RenderElement | null {
+// `full`: the view draws the row whole (ctrl+o, --verbose, an unfolded
+// group), so no line folds to a count (2.1.318's isExpanded contract)
+function bashBody(t: Elements['terminal'], p: Palette, output: unknown, isErrored: boolean, cols: number, full = false): RenderElement | null {
+  const maxLines = full ? Infinity : MAX_PAINTED_LINES
   if (isErrored) {
     if (typeof output !== 'string' || output.trim() === '') return null
-    return renderToolOutput(t, p, output.replace(/\s+$/, '').split('\n'), { columns: cols, maxLines: MAX_PAINTED_LINES })
+    return renderToolOutput(t, p, output.replace(/\s+$/, '').split('\n'), { columns: cols, maxLines })
   }
   const out = output as { stdout?: unknown; stderr?: unknown; interrupted?: unknown; bashEditDiff?: unknown } | undefined
   if (!out || typeof out !== 'object' || typeof out.stdout !== 'string' || out.interrupted === true) return null
@@ -170,11 +173,11 @@ function bashBody(t: Elements['terminal'], p: Palette, output: unknown, isErrore
     : []
   if (files.length > 0) {
     const moreFiles = typeof diff?.moreFiles === 'number' ? diff.moreFiles : 0
-    return renderBashResult(t, p, lines, files, { maxLines: MAX_PAINTED_LINES, moreFiles, columns: cols })
+    return renderBashResult(t, p, lines, files, { maxLines, moreFiles, columns: cols })
   }
   if (text === '') return renderNoOutput(t, p)
   if (text.includes(ESC)) return null
-  return renderToolOutput(t, p, lines, { columns: cols, maxLines: MAX_PAINTED_LINES })
+  return renderToolOutput(t, p, lines, { columns: cols, maxLines })
 }
 
 // Screenshots draw outside tmux only (0.6.0): inside it the engine's text
@@ -666,7 +669,7 @@ export const register: Register = (on, options) => {
       if (body) return t.Box({ flexDirection: 'column', children: [row, body] })
     }
     if (e.props.tool !== 'Bash' || e.props.isRunning || e.props.output === undefined) return row
-    const body = bashBody(t, palette, e.props.output, e.props.isErrored, e.viewport?.columns ?? 80)
+    const body = bashBody(t, palette, e.props.output, e.props.isErrored, e.viewport?.columns ?? 80, e.props.isExpanded === true)
     return body ? t.Box({ flexDirection: 'column', children: [row, body] }) : row
   })
 
@@ -748,8 +751,13 @@ export const register: Register = (on, options) => {
     if (e.surface !== 'terminal') return next(e)
     const turnId = callTurn.get(e.props.tool_use_id)
     if (turnId && foldedTurns.has(turnId)) return $.ui.resolve(e).Box({ display: 'none', children: [] })
+    // ctrl+o and --verbose draw the row whole: the one-line forms below (a
+    // reason's first line, the launch and skill lines) give the engine's body
+    // back, as the isExpanded contract asks (2.1.318)
+    const whole = e.props.isExpanded === true
     // a failed call's reason on the trunk; a failed Bash's body is the ToolUse row's
     if (e.props.isErrored && e.props.tool !== 'Bash' && typeof e.props.output === 'string') {
+      if (whole) return next(e)
       const reason = e.props.output.replace(/<\/?tool_use_error>/g, '')
       if (reason.trim() !== '') return renderToolError($.ui.resolve(e), palette, reason)
     }
@@ -760,12 +768,12 @@ export const register: Register = (on, options) => {
     // a backgrounded agent: one trunked line in place of the engine's body
     if (e.props.tool === 'Agent' || e.props.tool === 'Task') {
       const status = (e.props.output as { status?: unknown } | undefined)?.status
-      if (status === 'async_launched' || status === 'remote_launched') return renderAgentLaunch($.ui.resolve(e), palette, status === 'remote_launched')
+      if (!whole && (status === 'async_launched' || status === 'remote_launched')) return renderAgentLaunch($.ui.resolve(e), palette, status === 'remote_launched')
       return next(e)
     }
     // a loaded skill: one trunked line in place of the engine's body, whose
     // corner bracket sat off the trunk (2026-10-09)
-    if (e.props.tool === 'Skill' && !e.props.isErrored) return renderSkillLoad($.ui.resolve(e), palette, e.props.output)
+    if (e.props.tool === 'Skill' && !e.props.isErrored && !whole) return renderSkillLoad($.ui.resolve(e), palette, e.props.output)
     // an MCP screenshot or a Read image: the picture Claude read, in place of
     // its text body (0.6.0; a Read and any format, 0.8.0)
     // the row carries no input: its Read's file is the one recorded for its id,
