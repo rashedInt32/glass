@@ -307,7 +307,7 @@ test('mounted: the band with a running agent validates on the terminal (its chev
     plugin: 'glass',
     surface: 'terminal',
     component: 'AbovePrompt',
-    props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 100, scroll: { offset: 0, bodyRows: 10 }, view: {} },
+    props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 10, bodyColumns: 100, scroll: { offset: 0, bodyRows: 10 }, view: {} },
   })
   expect(await band.find({ type: 'Text', text: /background/ })).toBeDefined()
   expect(await band.find({ type: 'Text', text: /Hunt widths/ })).toBeDefined()
