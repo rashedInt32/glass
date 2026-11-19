@@ -906,6 +906,26 @@ Two directions, settled 2026-10-11.
   theme (`theme` reads `custom:glass-*` in `$.config.list()`) rewrites and
   re-sets the theme to the new palette, so the two never disagree. Any
   other active theme is left alone.
+- **(0.20.0)** `userConfig.ground` (string, default empty; owner's request
+  2026-11-19 after a Rex theme switch left the night-owl card tint as a
+  slab on a darker navy: `#0e2a3a` is 1.23:1 on night-owl, 1.13:1 on the
+  owner's Ghostty ground `#0a1f30`, 1.29:1 on Abyssal Trench `#06101a`).
+  The terminal's own background as a hex, `#rrggbb` or `#rgb`, the hash
+  optional. Set, the palette's four ground tints (`blockBg`, `rowHover`,
+  `addBg`, `delBg`) are scaled by one factor, every channel alike, so the
+  hue is kept and the four keep their places beside each other
+  (`grounded` in `hooks/theme.ts`). The factor is the one that puts
+  `blockBg` 1.16:1 above a dark ground, or 1.13:1 below a ground of
+  luminance over 0.3. Every other role is kept. Empty, or not a hex, the
+  palette stands as written, and a value that is not a hex says so in a
+  toast. It follows `/config` live and re-syncs an active glass theme, as
+  a palette switch does, since the user row and the Bash row are the
+  theme's to paint. Rejected the same day, owner's pick: a neutral layer
+  over the ground (white at the alpha that reached 1.23:1, `#1c262f` on
+  Abyssal Trench), since grey does not stand out, and a black layer,
+  which is 1.05:1 at 50% on a ground that dark. The value is the person's
+  to give: a plugin cannot ask the terminal (a child process has no tty
+  for OSC 11, and no engine noun reports the ground; checked on 2.1.322).
 - Known limits. Confirmed 2026-10-11 on 2.1.296: `config.set` refuses a
   `custom:` value from a plugin (the row takes only `auto`, `dark`,
   `light` and their daltonized and ansi forms), so `/glass-theme` writes

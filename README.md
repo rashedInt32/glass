@@ -171,6 +171,12 @@ Light, Solarized Light and Catppuccin Latte too; on Latte the card tint
 reads as the ground. Run `/glass-theme` after picking one so the engine's
 own panels take a light base.
 
+The card tints are tuned for a night-owl navy. On another background, set
+yours once: `/config glass.ground=#0b1029`, or Terminal background under
+Glass in `/config`. The card, user row, hover and diff row tints are then
+dimmed or brightened together to sit one step off your own color, and
+every hue stays as it is.
+
 To try it from a clone without installing:
 
 ```

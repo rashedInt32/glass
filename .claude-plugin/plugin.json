@@ -2,7 +2,7 @@
   "name": "glass",
   "displayName": "Glass",
   "description": "A desktop-app look for Claude Code's terminal: colored shell commands in prose, a Bottom line card, content-fit code cards, borderless tables, gutter marks beside paragraphs that need you, painted tool rows and turn headers.",
-  "version": "0.19.2",
+  "version": "0.20.0",
   "author": { "name": "rashed parvez" },
   "homepage": "https://github.com/rashedInt32/glass",
   "repository": "https://github.com/rashedInt32/glass",
@@ -16,6 +16,12 @@
       "description": "Color palette for inline code, headings and cards",
       "options": ["tarnish", "overprint", "ironbow", "lagoon", "iris", "tangerine", "prism", "prism-light", "tangerine-light", "tidepool", "water", "crimson", "codex"],
       "default": "tidepool"
+    },
+    "ground": {
+      "type": "string",
+      "title": "Terminal background",
+      "description": "Your terminal's background as a hex color, such as #0b1029. The palette's card, user row, hover and diff row tints are then dimmed or brightened to sit one step off it, hue kept. Empty keeps the palette's own tints",
+      "default": ""
     },
     "notify": {
       "type": "boolean",

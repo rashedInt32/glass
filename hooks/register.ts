@@ -9,7 +9,7 @@ import { parseMarkdown } from './markdown'
 import type { Block } from './markdown'
 import { PALETTES, paletteNameOf, paletteNamed } from './palette'
 import type { Palette, PaletteName } from './palette'
-import { themeFileName, themeFor, themeJson, themeSetting } from './theme'
+import { groundHex, grounded, themeFileName, themeFor, themeJson, themeSetting } from './theme'
 import { choicesFor, clear, gather, parseArgs, planFrom, reportText, rootsFor } from './storage'
 import { writeIntent } from './prose'
 import { renderReply } from './render'
@@ -122,7 +122,7 @@ async function showView($: EngineInterface, v: { agentId?: string }): Promise<vo
 // from a plugin (seen 2.1.296: `takes one of: auto, dark, light, ...`), so
 // the select step is tried and, when refused, the answer names the one
 // settings.json line that selects a custom theme.
-async function installTheme($: EngineInterface, name: PaletteName): Promise<string> {
+async function installTheme($: EngineInterface, name: PaletteName, ground: unknown): Promise<string> {
   const home = await $.env.get('HOME')
   if (!home || !home.startsWith('/')) return 'HOME is not set, so no theme was written'
   const dir = `${home}/.claude/themes`
@@ -135,7 +135,7 @@ async function installTheme($: EngineInterface, name: PaletteName): Promise<stri
     // no themes directory yet: the write creates it
   }
   try {
-    await $.fs.write(`${dir}/${file}`, themeJson(themeFor(PALETTES[name], name)))
+    await $.fs.write(`${dir}/${file}`, themeJson(themeFor(grounded(PALETTES[name], ground), name)))
   } catch {
     return `could not write ${shown}`
   }
@@ -148,6 +148,17 @@ async function installTheme($: EngineInterface, name: PaletteName): Promise<stri
     return byHand
   }
   return `theme glass-${name} on (${shown})`
+}
+
+// A glass theme follows the palette (0.5.0) and the ground (0.20.0); any
+// other theme is left alone.
+async function followTheme($: EngineInterface, name: PaletteName, ground: unknown): Promise<void> {
+  try {
+    const row = (await $.config.list()).find(r => r.key === 'theme')
+    if (typeof row?.value === 'string' && row.value.startsWith('custom:glass-')) $.ui.toast('glass: ' + (await installTheme($, name, ground)))
+  } catch {
+    // the theme stays as it was
+  }
 }
 
 // A Bash call's body as glass draws it, or null where the engine's stays.
@@ -386,11 +397,14 @@ async function setCall($: EngineInterface, turnId: string, call: GlassCall) {
 }
 
 export const register: Register = (on, options) => {
-  const opts = (options ?? {}) as { palette?: unknown; notify?: unknown; screenshots?: unknown }
+  const opts = (options ?? {}) as { palette?: unknown; notify?: unknown; screenshots?: unknown; ground?: unknown }
+  // the `ground` option (0.20.0): the terminal's own background, from which
+  // the card and hover tints are derived; not a color, the palette's stand
+  let ground = opts.ground
   // the palette follows /config live: every hook reads this binding at
   // draw time, and the config.set hook below swaps it (rows already drawn
   // keep their colors until something redraws them)
-  let palette = paletteNamed(opts.palette)
+  let palette = grounded(paletteNamed(opts.palette), ground)
   let paletteName = paletteNameOf(opts.palette)
   // notifications (0.5.0): on unless the option says otherwise; follows /config live
   let notifyOn = opts.notify !== false
@@ -469,19 +483,25 @@ export const register: Register = (on, options) => {
 
   on('config.set', { key: 'glass.palette' }, async ($, e, next) => {
     const result = await next(e)
-    palette = paletteNamed(e.value)
+    palette = grounded(paletteNamed(e.value), ground)
     paletteName = paletteNameOf(e.value)
-    // a glass theme follows the palette (0.5.0); any other theme is left alone
-    try {
-      const row = (await $.config.list()).find(r => r.key === 'theme')
-      if (typeof row?.value === 'string' && row.value.startsWith('custom:glass-')) $.ui.toast('glass: ' + (await installTheme($, paletteName)))
-    } catch {
-      // the theme stays as it was
-    }
+    await followTheme($, paletteName, ground)
     return result
   })
 
-  on('command.run', { command: 'glass-theme' }, async $ => ({ text: await installTheme($, paletteName) }))
+  // the user row and the Bash row are the theme's to paint, so a new ground
+  // reaches them through the theme file, as a new palette does
+  on('config.set', { key: 'glass.ground' }, async ($, e, next) => {
+    const result = await next(e)
+    ground = e.value
+    palette = grounded(paletteNamed(paletteName), ground)
+    if (typeof ground === 'string' && ground.trim() !== '' && !groundHex(ground)) $.ui.toast('glass: ground is not a hex color such as #0b1029; the palette keeps its own tints')
+    await followTheme($, paletteName, ground)
+    $.ui.invalidate('ui.render')
+    return result
+  })
+
+  on('command.run', { command: 'glass-theme' }, async $ => ({ text: await installTheme($, paletteName, ground) }))
 
   on('config.set', { key: 'glass.screenshots' }, async ($, e, next) => {
     const result = await next(e)

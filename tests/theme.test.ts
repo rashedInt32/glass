@@ -4,7 +4,67 @@ import { expect, test } from 'claude-code/testing'
 
 import { PALETTES } from '../hooks/palette'
 import type { PaletteName } from '../hooks/palette'
-import { THEME, deepen, lift, themeFileName, themeFor, themeJson, themeSetting } from '../hooks/theme'
+import { THEME, contrast, deepen, groundHex, grounded, lift, scale, stepFactor, themeFileName, themeFor, themeJson, themeSetting } from '../hooks/theme'
+
+// 0.20.0: the `ground` option. The palette's own ground tints, dimmed or
+// brightened together so the card stands its step off the person's ground.
+test('a ground reads as a hex with or without the hash, three digits or six; anything else is no ground', async () => {
+  expect(groundHex('#0B1029')).toBe('#0b1029')
+  expect(groundHex(' 0b1029 ')).toBe('#0b1029')
+  expect(groundHex('#fff')).toBe('#ffffff')
+  for (const v of ['', 'navy', '#0b102', '#0b1029ff', 'rgb(1,2,3)', undefined, 7]) expect(groundHex(v)).toBe(null)
+})
+
+test('on a darker ground the night-owl card is the same teal, darker: the old hex stood too far off', async () => {
+  const rex = '#06101a'
+  expect(contrast('#0e2a3a', rex)).toBeGreaterThan(1.28)
+  const k = stepFactor('#0e2a3a', rex)
+  expect(k).toBeLessThan(1)
+  const card = scale('#0e2a3a', k)
+  expect(Math.abs(contrast(card, rex) - 1.16)).toBeLessThan(0.02)
+  // the hue is kept: blue over green over red, as in the palette's own tint
+  const ch = (i: number) => parseInt(card.slice(1 + 2 * i, 3 + 2 * i), 16)
+  expect(ch(2)).toBeGreaterThan(ch(1))
+  expect(ch(1)).toBeGreaterThan(ch(0))
+})
+
+test('a grounded palette puts its card one step off any ground, on the far side from it', async () => {
+  for (const name of NAMES) {
+    const p = PALETTES[name]
+    for (const g of ['#000000', '#011627', '#06101a', '#0a1f30', '#1e1e2e', '#282c34']) {
+      const card = grounded(p, g).blockBg
+      expect(Math.abs(contrast(card, g) - 1.16)).toBeLessThan(0.03)
+      expect(contrast(card, '#ffffff')).toBeLessThan(contrast(g, '#ffffff'))
+    }
+    for (const g of ['#ffffff', '#fafafa', '#eff1f5', '#fdf6e3']) {
+      const card = grounded(p, g).blockBg
+      expect(Math.abs(contrast(card, g) - 1.13)).toBeLessThan(0.03)
+      expect(contrast(card, '#000000')).toBeLessThan(contrast(g, '#000000'))
+    }
+  }
+})
+
+test('a grounded palette changes its four ground tints alone, by one factor, and no ground changes nothing', async () => {
+  for (const name of NAMES) {
+    const p = PALETTES[name]
+    expect(grounded(p, '')).toBe(p)
+    expect(grounded(p, 'navy')).toBe(p)
+    const g = grounded(p, '#06101a')
+    const k = stepFactor(p.blockBg, '#06101a')
+    const tints = ['blockBg', 'rowHover', 'addBg', 'delBg'] as const
+    for (const role of tints) expect(g[role]).toBe(scale(p[role], k))
+    // tints the palette holds equal stay equal
+    if (p.rowHover === p.blockBg) expect(g.rowHover).toBe(g.blockBg)
+    if (p.addBg === p.blockBg) expect(g.addBg).toBe(g.blockBg)
+    for (const role of Object.keys(p) as (keyof typeof p)[]) {
+      if (!(tints as readonly string[]).includes(role)) expect(g[role]).toBe(p[role])
+    }
+    // the theme file carries the derived tint to the rows the engine paints
+    expect(themeFor(g, name).overrides.userMessageBackground).toBe(g.blockBg)
+    expect(themeFor(g, name).overrides.bashMessageBackgroundColor).toBe(g.blockBg)
+    expect(themeFor(g, name).overrides.diffRemoved).toBe(g.delBg)
+  }
+})
 
 const NAMES: PaletteName[] = ['tidepool', 'tarnish', 'overprint', 'ironbow', 'lagoon', 'iris', 'tangerine', 'prism', 'prism-light', 'tangerine-light', 'water', 'crimson', 'codex']
 const REQUIRED = [
