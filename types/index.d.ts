@@ -87,6 +87,8 @@ declare module 'claude-code' {
       band: 'open' | 'closed'
       /** the main-loop turn now running, null between turns; kept by the host across a reload (0.5.1) */
       liveTurn: string | null
+      /** the reply streaming now under the classic renderer, for the live box above the prompt (0.21.0); null otherwise */
+      streaming: { id: string; text: string } | null
     }
   }
 }

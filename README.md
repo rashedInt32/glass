@@ -155,12 +155,13 @@ Claude Code 2.1.295 or newer. On an older engine glass still loads: the
 notification falls back to a toast, summary and server tool rows need
 props that older engines do not send, and the rest is unchanged.
 
-Inside tmux, set `CLAUDE_CODE_NO_FLICKER=1` (in `env` of
-`~/.claude/settings.json`). Claude Code draws on tmux's main screen by
-default, and there a reply taller than the screen is printed twice: the
-engine draws the streamed text, glass redraws the finished reply, and the
-engine cannot reach rows already in scrollback. The fullscreen layout has
-no scrollback to strand them in.
+On Claude Code's main screen (tmux by default, or
+`CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1`), a reply streams into a live box
+above the prompt and lands in the transcript once, finished, in glass's
+style. That keeps the terminal's own scrollback, smooth scrolling included,
+free of the second copy Claude Code otherwise prints of every reply taller
+than the screen. On the fullscreen layout (`CLAUDE_CODE_NO_FLICKER=1`) a
+reply streams in place as usual.
 
 Restart Claude Code. Pick a palette with `/config` under Glass: `tidepool`
 (default), `tarnish`, `overprint`, `ironbow`, `lagoon`, `iris`, `tangerine` and `prism` (glass's own), `prism-light` and `tangerine-light` (glass's own, for a light terminal), `water` (Empryo's own proxysoul-water tokens), `crimson` (Empryo's crimson

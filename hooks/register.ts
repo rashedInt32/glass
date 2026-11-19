@@ -13,6 +13,7 @@ import { groundHex, grounded, themeFileName, themeFor, themeJson, themeSetting }
 import { choicesFor, clear, gather, parseArgs, planFrom, reportText, rootsFor } from './storage'
 import { writeIntent } from './prose'
 import { renderReply } from './render'
+import { StreamStore, markerFor, tailFit, tailRows } from './stream'
 import { CONVERTIBLE, hashOf, namedIn, pictureOf, pictureReadOrder, readPath, shotFromPng } from './shot'
 import type { Picture, Shot } from './shot'
 
@@ -34,6 +35,9 @@ const band = atom({ plugin: 'glass', key: 'band' } as const, 'open' as 'open' | 
 // so an agent finishing inside that turn is not mistaken for one that
 // finished after it (review finding, 0.5.1)
 const liveTurn = atom({ plugin: 'glass', key: 'liveTurn' } as const, null as string | null)
+// the reply streaming now under the classic renderer, for the live box above
+// the prompt (0.21.0); null between replies and under the fullscreen renderer
+const streaming = atom({ plugin: 'glass', key: 'streaming' } as const, null as { id: string; text: string } | null)
 
 const HISTORY = 48
 // finished replies whose parse is kept for their redraws
@@ -451,6 +455,15 @@ export const register: Register = (on, options) => {
       }
     }
   }
+  // classic-renderer streaming (0.21.0, hooks/stream.ts): which renderer the
+  // terminal runs, from the viewport any render hook sees, and the text of
+  // the replies whose rows show a marker
+  let fullscreen: boolean | undefined
+  const seeViewport = (e: { viewport?: { isFullscreen?: boolean } }) => {
+    const f = e.viewport?.isFullscreen
+    if (typeof f === 'boolean') fullscreen = f
+  }
+  const streams = new StreamStore()
   // a finished message redraws on every /fold, resize and palette change:
   // its parse is kept, the newest few by text
   const parsed = new Map<string, Block[]>()
@@ -587,8 +600,29 @@ export const register: Register = (on, options) => {
     return { text: 'Every turn is open.' }
   })
 
+  // ---- classic renderer: the reply streams above the prompt (0.21.0) ------
+  // Under the main-screen renderer a reply taller than the screen lands twice
+  // in scrollback once glass redraws it (hooks/stream.ts). There each flush
+  // shows an invisible marker instead of its lines, the text streams into
+  // the box the AbovePrompt hook draws, and the finished row draws the
+  // stored text. The fullscreen renderer is left as it is.
+  on('classic.MessageDisplay', async ($, e, next) => {
+    const below = await next(e)
+    if (fullscreen !== false) return below
+    const shown = typeof below.displayContent === 'string' ? below.displayContent : e.delta
+    const seq = streams.add(e.message_id, shown)
+    const text = streams.textFor(markerFor(seq)) ?? ''
+    await update($, streaming, () => (e.final ? null : { id: e.message_id, text }))
+    return { ...below, displayContent: e.index === 0 ? markerFor(seq) : '' }
+  })
+
   // ---- reply renderer ----------------------------------------------------
-  on('ui.render', { component: 'AssistantMessage' }, ($, e, next) => {
+  on('ui.render', { component: 'AssistantMessage' }, ($, e0, next) => {
+    seeViewport(e0)
+    // a row whose reply streamed under the classic renderer shows a marker:
+    // it draws the text the marker stands for, on every surface
+    const real = streams.textFor(e0.props.text)
+    const e = real === undefined ? e0 : { ...e0, props: { ...e0.props, text: real } }
     if (e.surface !== 'terminal') return next(e)
     const text = e.props.text
     if (text.trim() === '') return next(e)
@@ -846,6 +880,7 @@ export const register: Register = (on, options) => {
     if ((e as { agentId?: string }).agentId) return next(e)
     live.turnId = e.turnId
     live.active = true
+    await update($, streaming, () => null)
     await update($, liveTurn, () => e.turnId)
     live.startedAt = await $.clock.now()
     live.tools = 0
@@ -997,6 +1032,8 @@ export const register: Register = (on, options) => {
       }
       return next(e)
     }
+    // an interrupted reply may end without its final flush
+    await update($, streaming, () => null)
     const u = e.usage
     let costUsd: number | null = null
     if (live.costStart !== null) {
@@ -1077,11 +1114,15 @@ export const register: Register = (on, options) => {
   // ---- background band ---------------------------------------------------
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.surface !== 'terminal' || e.props.hasSurvey) return next(e)
+    seeViewport(e)
     // The band is one site for every plugin: what the plugins beneath draw
     // stays, under the agents' frame, and alone when no agent runs.
     const below = await next(e)
+    // the classic renderer's live reply (0.21.0) sits on top of it all
+    const now = fullscreen === false ? ((await read($, streaming)) ?? null) : null
+    const tail = now && now.text.trim() !== '' ? liveBox($.ui.resolve(e), palette, now.text, e.props.bodyColumns, e.viewport?.rows ?? 24) : null
     const list = (await read($, agents)) ?? []
-    if (list.length === 0) return below
+    if (list.length === 0) return tail ? $.ui.resolve(e).Box({ flexDirection: 'column', children: [tail, below] }) : below
     const t = $.ui.resolve(e)
     const state = (await read($, band)) ?? 'open'
     // 0.10.0: `view` puts the agent's transcript in the main view and `back`
@@ -1098,8 +1139,18 @@ export const register: Register = (on, options) => {
       onView: (agentId: string) => void showView($, { agentId }),
       onBack: () => void showView($, {}),
     })
-    return t.Box({ flexDirection: 'column', children: [frame, below] })
+    return t.Box({ flexDirection: 'column', children: tail ? [tail, frame, below] : [frame, below] })
   })
+}
+
+/**
+ * The classic renderer's live reply: the newest lines of the streaming text
+ * in glass's style, as many as fit in tailRows less a row for the card and
+ * heading air glass adds around blocks.
+ */
+function liveBox(t: Elements['terminal'], palette: Palette, text: string, columns: number, viewportRows: number): RenderElement {
+  const src = tailFit(text, tailRows(viewportRows) - 2, columns - 4)
+  return renderReply(t, parseMarkdown(src), palette, { first: false, columns, marks: false, summary: false })
 }
 
 /** Keeps the tool_use_ids of an unfolded group's calls. */

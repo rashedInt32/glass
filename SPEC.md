@@ -116,6 +116,24 @@ docs/shots/        (0.10.0) one demo turn per palette, 100 columns on the owner'
   run). `CLAUDE_CODE_NO_FLICKER=1` puts tmux on the fullscreen layout and
   the duplicate goes (live, 2026-10-12). Handing tall replies back to the
   engine on the main screen was not taken: it drops the styling.
+- **(0.21.0)** Main screen only (`isFullscreen: false`). The cause, read off
+  2.1.322's `--debug` log, is one frame. glass's answer for the finished
+  row lands ~16 ms after the engine swaps the streamed copy for it, the
+  frame shrinks for that frame ("Full reset (shrink->below)"), and the
+  engine reprints the turn under the copy already in scrollback. A frame
+  that does not shrink leaves scrollback alone. So each
+  `classic.MessageDisplay` flush shows an invisible marker in place of its
+  lines (the first flush the marker, the rest nothing), the streamed text
+  goes to the `streaming` atom, the `AbovePrompt` hook draws its newest
+  lines that fit (`tailRows`: the viewport less 22 rows, 3 to 30; a turn's
+  live rows measured 16 to 20 at 33 rows), and the `AssistantMessage` hook
+  draws the text the marker stands for. Live checks in a hidden Rex pane at
+  123x33: a 900-word reply, a three-tool turn and a second turn, glass on,
+  no duplicate row and no full reset; the fullscreen layout untouched, no
+  marker written. Not checked live: an interrupted reply (the harness could
+  not interrupt), a remote surface (it sees the marker while a reply
+  streams), and a hooks worker lost mid-session (a marker row it forgot
+  draws empty).
 - A finished reply's parse is kept (the newest 64 by text), so `/fold`,
   resizes and palette changes do not parse every reply again. Links, URLs
   and code words are matched in place.
