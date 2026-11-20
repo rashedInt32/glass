@@ -25,6 +25,17 @@ export function markerFor(seq: number): string {
   return START + [...bits].map(b => (b === '1' ? ONE : ZERO)).join('') + START
 }
 
+/**
+ * What a main-screen flush shows in place of its lines: the marker on the
+ * first flush and again on the last, nothing between. The last one matters
+ * when the first showed its own lines (the layout not yet seen, or the hook
+ * skipped): the row then ends in a marker and still draws the whole reply,
+ * not the first lines alone (0.21.1).
+ */
+export function flushShows(seq: number, index: number, final: boolean): string {
+  return index === 0 || final ? markerFor(seq) : ''
+}
+
 /** The sequence number a displayed text carries, undefined without a marker. */
 export function seqIn(text: string): number | undefined {
   const bits = MARKER.exec(text)?.[1]

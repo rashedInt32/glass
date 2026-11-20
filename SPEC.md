@@ -134,6 +134,18 @@ docs/shots/        (0.10.0) one demo turn per palette, 100 columns on the owner'
   not interrupt), a remote surface (it sees the marker while a reply
   streams), and a hooks worker lost mid-session (a marker row it forgot
   draws empty).
+- **(0.21.1)** A reply drew "Bottom line" over an empty card (2026-11-20,
+  Rex, main screen). The row draws the stored text as far as it has
+  streamed when it first draws, and its text, the marker, never changed
+  after the first flush, so it never drew again. A repro on 0.21.0 lost a
+  reply's last line the same way. Now the last flush shows the marker as
+  well, so the row's text changes once more and it redraws whole. Also:
+  every flush is kept whatever the layout (a first flush that passed
+  through still has its lines behind the last marker), and only a terminal
+  drawing's viewport sets the layout. Checked live in a hidden Rex pane at
+  80x24 on the main screen: a short reply and a 49-line reply after a Bash
+  call each drew whole, once; no full reset at the final redraw (the resets
+  while streaming are 0.21.0's too).
 - A finished reply's parse is kept (the newest 64 by text), so `/fold`,
   resizes and palette changes do not parse every reply again. Links, URLs
   and code words are matched in place.

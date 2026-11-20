@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
-import { StreamStore, markerFor, seqIn, tailFit, tailRows } from '../hooks/stream'
+import { parseMarkdown } from '../hooks/markdown'
+import { StreamStore, flushShows, markerFor, seqIn, tailFit, tailRows } from '../hooks/stream'
 import { cellWidth } from '../hooks/width'
 
 test('a marker round-trips its sequence number and takes no cells', async () => {
@@ -23,6 +24,53 @@ test('the store hands back the whole streamed text for a marker', async () => {
   expect(s.textFor(markerFor(b))).toBe('Second reply.\n')
   expect(s.textFor('no marker here')).toBeUndefined()
   expect(s.textFor(markerFor(9))).toBeUndefined()
+})
+
+test('a row drawn mid-stream changes its text on the last flush, so it redraws whole', async () => {
+  // 2026-11-20: the row drew once after the first flush and its text (the
+  // marker) never changed again, so it kept "Bottom line" over an empty card
+  const flushes = ['**Bottom line**\n', '- **Verified:** ran it.\n', '- **Issue:** drawn once.\n', '- **Fix:** redraw at the end.']
+  const s = new StreamStore()
+  const rows: string[] = []
+  flushes.forEach((delta, i) => {
+    const seq = s.add('msg-a', delta)
+    rows.push((rows[i - 1] ?? '') + flushShows(seq, i, i === flushes.length - 1))
+  })
+  // the engine redraws a row when its text changes: between flushes it
+  // does not, and the last flush changes it
+  expect(rows[1]).toBe(rows[0])
+  expect(rows[3]).not.toBe(rows[2])
+  expect(s.textFor(rows[3]!)).toBe(flushes.join(''))
+})
+
+test('a row whose first flush showed its own lines still draws the whole reply', async () => {
+  // the first flush passes through when the layout is not yet known
+  const flushes = [
+    '**Bottom line**\n',
+    '- **Verified:** ran it.\n',
+    '- **Issue:** the hook raced.\n',
+    '- **Fix:** keep every flush.\n',
+    '\n## What changed\n',
+    'One line.',
+  ]
+  const s = new StreamStore()
+  let row = ''
+  flushes.forEach((delta, i) => {
+    const seq = s.add('msg-a', delta)
+    // the first flush passed through: the layout was not yet seen
+    row += i === 0 ? delta : flushShows(seq, i, i === flushes.length - 1)
+  })
+  expect(s.textFor(row)).toBe(flushes.join(''))
+  const [card] = parseMarkdown(s.textFor(row)!)
+  expect(card?.kind === 'callout' ? card.rows.map(r => r.label) : []).toEqual(['Verified', 'Issue', 'Fix'])
+})
+
+test('the marker sits on the first flush and the last, nothing between', async () => {
+  expect(flushShows(3, 0, false)).toBe(markerFor(3))
+  expect(flushShows(3, 1, false)).toBe('')
+  expect(flushShows(3, 4, true)).toBe(markerFor(3))
+  expect(flushShows(3, 0, true)).toBe(markerFor(3))
+  expect(cellWidth(markerFor(3) + markerFor(3))).toBe(0)
 })
 
 test('the store forgets the oldest replies past its cap', async () => {

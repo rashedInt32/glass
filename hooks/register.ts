@@ -13,7 +13,7 @@ import { groundHex, grounded, themeFileName, themeFor, themeJson, themeSetting }
 import { choicesFor, clear, gather, parseArgs, planFrom, reportText, rootsFor } from './storage'
 import { writeIntent } from './prose'
 import { renderReply } from './render'
-import { StreamStore, markerFor, tailFit, tailRows } from './stream'
+import { StreamStore, flushShows, markerFor, tailFit, tailRows } from './stream'
 import { CONVERTIBLE, hashOf, namedIn, pictureOf, pictureReadOrder, readPath, shotFromPng } from './shot'
 import type { Picture, Shot } from './shot'
 
@@ -456,10 +456,12 @@ export const register: Register = (on, options) => {
     }
   }
   // classic-renderer streaming (0.21.0, hooks/stream.ts): which renderer the
-  // terminal runs, from the viewport any render hook sees, and the text of
-  // the replies whose rows show a marker
+  // terminal runs, from the viewport a terminal render hook sees, and the
+  // text of the replies whose rows show a marker. A remote surface's
+  // viewport says nothing of the terminal's layout (0.21.1).
   let fullscreen: boolean | undefined
-  const seeViewport = (e: { viewport?: { isFullscreen?: boolean } }) => {
+  const seeViewport = (e: { surface?: string; viewport?: { isFullscreen?: boolean } }) => {
+    if (e.surface !== 'terminal') return
     const f = e.viewport?.isFullscreen
     if (typeof f === 'boolean') fullscreen = f
   }
@@ -608,12 +610,15 @@ export const register: Register = (on, options) => {
   // stored text. The fullscreen renderer is left as it is.
   on('classic.MessageDisplay', async ($, e, next) => {
     const below = await next(e)
-    if (fullscreen !== false) return below
+    if (fullscreen === true) return below
+    // every flush is kept, the layout known or not: a first flush that showed
+    // its own lines still has them behind the last flush's marker (0.21.1)
     const shown = typeof below.displayContent === 'string' ? below.displayContent : e.delta
     const seq = streams.add(e.message_id, shown)
+    if (fullscreen === undefined) return below
     const text = streams.textFor(markerFor(seq)) ?? ''
     await update($, streaming, () => (e.final ? null : { id: e.message_id, text }))
-    return { ...below, displayContent: e.index === 0 ? markerFor(seq) : '' }
+    return { ...below, displayContent: flushShows(seq, e.index, e.final) }
   })
 
   // ---- reply renderer ----------------------------------------------------
